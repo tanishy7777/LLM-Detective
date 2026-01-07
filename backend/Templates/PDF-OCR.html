@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AI Detection</title>
+    <style>
+      /* Base layout */
+      body {
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(
+          135deg,
+          rgba(30, 30, 30, 0.9),
+          rgba(10, 10, 10, 0.9)
+        );
+        color: #fff;
+        height: 100vh;
+        margin: 0;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        overflow-y: auto;
+      }
+
+      h2 {
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 28px;
+        letter-spacing: 1px;
+      }
+
+      /* Glass container */
+      .glass {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        border-radius: 20px;
+        padding: 30px 40px;
+        max-width: 800px;
+        width: 100%;
+        margin-bottom: 30px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* Drag-and-drop area */
+      #drop-area {
+        border: 2px dashed rgba(255, 255, 255, 0.3);
+        border-radius: 15px;
+        padding: 30px;
+        width: 100%;
+        text-align: center;
+        cursor: pointer;
+        transition: border 0.3s ease, background 0.3s ease;
+      }
+
+      #drop-area.dragover {
+        border-color: #00ffff;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      #drop-area input {
+        display: none;
+      }
+
+      #drop-area span {
+        display: block;
+        font-size: 18px;
+        margin-top: 10px;
+      }
+
+      button {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        padding: 10px 20px;
+        border-radius: 12px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 15px;
+        backdrop-filter: blur(5px);
+      }
+
+      button:hover {
+        background: rgba(255, 255, 255, 0.35);
+      }
+
+      /* Results section */
+      #results {
+        margin-top: 25px;
+        width: 100%;
+      }
+
+      .page {
+        margin: 20px 0;
+        padding: 20px;
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        line-height: 1.6;
+        position: relative;
+      }
+
+      .page strong {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 18px;
+        color: #00ffff;
+      }
+
+      .chunk {
+        text-decoration: underline;
+        text-decoration-thickness: 2px;
+        text-underline-offset: 3px;
+        margin-right: 4px;
+      }
+
+      /* Legend panel */
+      #legend {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 15px;
+        padding: 15px 20px;
+        width: 180px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      #legend h3 {
+        font-size: 16px;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+
+      .legend-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+        font-size: 14px;
+      }
+
+      .color-box {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        margin-right: 6px;
+        display: inline-block;
+      }
+
+      .legend-label {
+        flex-grow: 1;
+      }
+
+      /* Status text */
+      p {
+        margin: 6px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>AI Detection</h2>
+    <div class="glass">
+      <div id="drop-area">
+        <label>
+          <input type="file" id="pdfFile" accept="application/pdf" />
+          <div id="file-placeholder">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="36"
+              height="36"
+              fill="currentColor"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M.5 9.9V13a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V9.9H14V13H2V9.9H.5zm7-9a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7 7.293V1.5a.5.5 0 0 1 .5-.5z"
+              />
+            </svg>
+            <span>Drag & Drop PDF or Click to Select</span>
+          </div>
+        </label>
+      </div>
+      <button id="startBtn">Start OCR</button>
+      <div id="results"></div>
+    </div>
+
+    <div id="legend">
+      <h3>Legend</h3>
+      <div class="legend-item">
+        <span class="color-box" style="background: #ff4d4d"></span
+        ><span class="legend-label">AI</span
+        ><span class="legend-percent" id="perc0">0%</span>
+      </div>
+      <div class="legend-item">
+        <span class="color-box" style="background: #ffa64d"></span
+        ><span class="legend-label">Humanised</span
+        ><span class="legend-percent" id="perc1">0%</span>
+      </div>
+      <div class="legend-item">
+        <span class="color-box" style="background: #33cc33"></span
+        ><span class="legend-label">Human</span
+        ><span class="legend-percent" id="perc2">0%</span>
+      </div>
+      <div class="legend-item">
+        <span class="color-box" style="background: #4da6ff"></span
+        ><span class="legend-label">Polished</span
+        ><span class="legend-percent" id="perc3">0%</span>
+      </div>
+      <div class="legend-item">
+        <span class="color-box" style="background: #b366ff"></span
+        ><span class="legend-label">Cannot be determined</span
+        ><span class="legend-percent" id="perc4">0%</span>
+      </div>
+    </div>
+
+    <script>
+      const dropArea = document.getElementById("drop-area");
+      const fileInput = document.getElementById("pdfFile");
+      const startBtn = document.getElementById("startBtn");
+      const resultsDiv = document.getElementById("results");
+
+      // color mapping
+      const colorMap = {
+        0: "#ff4d4d",
+        1: "#ffa64d",
+        2: "#33cc33",
+        3: "#4da6ff",
+        4: "#b366ff",
+      };
+
+      // tracking percentages
+      const countMap = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
+      let totalChunks = 0;
+
+      dropArea.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        const placeholder = document.getElementById("file-placeholder");
+
+        if (file) {
+          placeholder.innerHTML = `
+      <img src="https://cdn-icons-png.flaticon.com/512/337/337946.png" 
+           alt="PDF Icon" style="width:50px;height:50px;margin-bottom:5px;">
+      <span style="display:block;text-align:center;font-size:16px;margin-top:5px;">${file.name}</span>
+    `;
+        } else {
+          // reset to original
+          placeholder.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M.5 9.9V13a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V9.9H14V13H2V9.9H.5zm7-9a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7 7.293V1.5a.5.5 0 0 1 .5-.5z"/>
+      </svg>
+      <span>Drag & Drop PDF or Click to Select</span>
+    `;
+        }
+      });
+
+      dropArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropArea.classList.add("dragover");
+      });
+      dropArea.addEventListener("dragleave", (e) => {
+        dropArea.classList.remove("dragover");
+      });
+      dropArea.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropArea.classList.remove("dragover");
+        if (e.dataTransfer.files.length) fileInput.files = e.dataTransfer.files;
+      });
+
+      startBtn.addEventListener("click", async () => {
+        const file = fileInput.files[0];
+        if (!file) return alert("Please select a PDF");
+
+        resultsDiv.innerHTML = `<p>Connecting to WebSocket...</p>`;
+        totalChunks = 0;
+        for (let k in countMap) countMap[k] = 0;
+
+        const ws = new WebSocket("ws://localhost:5000/ws/ocr/pdf");
+
+        ws.onopen = async () => {
+          resultsDiv.innerHTML = `<p>Connected. Uploading PDF...</p>`;
+          const buffer = await file.arrayBuffer();
+          ws.send(buffer);
+        };
+
+        ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+
+          if (msg.status === "done") {
+            resultsDiv.innerHTML += `<p><strong>OCR completed for all pages!</strong></p>`;
+            ws.close();
+            return;
+          }
+
+          if (msg.status === "completed") {
+            const p = document.createElement("p");
+            p.innerHTML = `<em>Page ${msg.page} completed.</em>`;
+            resultsDiv.appendChild(p);
+            return;
+          }
+
+          if (msg.data) {
+            const { input, chars, random_number } = msg.data;
+            totalChunks++;
+            countMap[random_number]++;
+
+            // update legend
+            for (let i = 0; i <= 4; i++) {
+              document.getElementById(`perc${i}`).textContent =
+                ((countMap[i] / totalChunks) * 100).toFixed(1) + "%";
+            }
+
+            let pageDiv = document.querySelector(`#page-${msg.page}`);
+            if (!pageDiv) {
+              pageDiv = document.createElement("div");
+              pageDiv.className = "page";
+              pageDiv.id = `page-${msg.page}`;
+              pageDiv.innerHTML = `<strong>Page ${msg.page}</strong>`;
+              resultsDiv.appendChild(pageDiv);
+            }
+
+            const span = document.createElement("span");
+            span.className = "chunk";
+            span.style.textDecorationColor = colorMap[random_number] || "#fff";
+            span.textContent = input || chars || "[chunk]";
+            pageDiv.appendChild(span);
+          }
+
+          if (msg.error) {
+            const err = document.createElement("p");
+            err.style.color = "red";
+            err.textContent = `Error (page ${msg.page}): ${msg.error}`;
+            resultsDiv.appendChild(err);
+          }
+        };
+
+        ws.onerror = (err) => {
+          resultsDiv.innerHTML = `<p style="color:red;">WebSocket error: ${err}</p>`;
+        };
+      });
+    </script>
+  </body>
+</html>

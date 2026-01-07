@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Processor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(
+          135deg,
+          rgba(20, 20, 30, 0.95),
+          rgba(50, 60, 90, 0.95)
+        );
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      h1 {
+        margin-bottom: 20px;
+        text-align: center;
+        font-size: 2em;
+        color: #a8c0ff;
+      }
+
+      .container {
+        display: flex;
+        width: 100%;
+        max-width: 1200px;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .panel {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        backdrop-filter: blur(20px);
+        padding: 20px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+
+      #pdfViewer {
+        width: 100%;
+        height: 80vh;
+        border-radius: 10px;
+      }
+
+      #chartContainer {
+        width: 100%;
+        height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .upload {
+        margin-bottom: 20px;
+        padding: 20px;
+        border: 2px dashed rgba(255, 255, 255, 0.3);
+        border-radius: 15px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      .upload:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      #status {
+        text-align: center;
+        margin-top: 10px;
+        color: #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>PDF Processor with Class Analysis</h1>
+
+    <label class="upload" for="fileInput">
+      <strong>Click to upload your PDF</strong><br />
+      <small>Drag and drop not supported in this version</small>
+    </label>
+    <input type="file" id="fileInput" accept=".pdf" />
+    <div id="status"></div>
+
+    <div class="container">
+      <div class="panel">
+        <h2 style="text-align: center">📊 Class Distribution</h2>
+        <div id="chartContainer">
+          <canvas id="classChart"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 style="text-align: center">📄 Processed PDF</h2>
+        <iframe id="pdfViewer" title="Processed PDF"></iframe>
+      </div>
+    </div>
+
+    <script>
+      const fileInput = document.getElementById("fileInput");
+      const statusDiv = document.getElementById("status");
+      const pdfViewer = document.getElementById("pdfViewer");
+      const ctx = document.getElementById("classChart").getContext("2d");
+
+      let chart;
+
+      async function uploadPDF(file) {
+        statusDiv.textContent = "Processing PDF...";
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/pdf/actual", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          statusDiv.textContent = "Error: " + response.statusText;
+          return;
+        }
+
+        const data = await response.json();
+        statusDiv.textContent = data.message || "Processed successfully";
+
+        // Display PDF
+        const base64PDF = data.pdf_bytes;
+        pdfViewer.src = "data:application/pdf;base64," + base64PDF;
+
+        // Example structure for class data: [[text, class], ...]
+        const items = data.data || []; // assuming returned data.data
+        const counts = {
+          0: 0,
+          1: 0,
+          2: 0,
+          3: 0,
+          4: 0,
+        };
+
+        // for (const [_, cls] of items) {
+        //   counts[cls] = (counts[cls] || 0) + 1;
+        // }
+        for (let index = 0; index < data.data.length; index++) {
+          const element = data.data[index];
+          const cls = element[1];
+          counts[cls] = (counts[cls] || 0) + element[0].length;
+        }
+
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        const labels = [
+          "Human",
+          "AI Generated",
+          "Macine Polished",
+          "Machine Humanised",
+          "Cannot be Determined",
+        ];
+        const values = Object.values(counts).map((v) =>
+          ((v / total) * 100).toFixed(1)
+        );
+        console.log("Class Distribution:", counts);
+        console.log("Labels:", labels);
+        console.log("Values:", values);
+        console.log("Total:", total);
+
+        // Update or create chart
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels,
+            datasets: [
+              {
+                data: values,
+                backgroundColor: [
+                  "#00ff00",
+                  "#ff0000",
+                  "#0000ff",
+                  "#ffaaaa",
+                  "#ffffff",
+                ],
+              },
+            ],
+          },
+          options: {
+            plugins: {
+              legend: {
+                labels: { color: "#fff", font: { size: 14 } },
+              },
+              title: {
+                display: true,
+                text: "Class Distribution (%)",
+                color: "#fff",
+                font: { size: 16 },
+              },
+            },
+          },
+        });
+      }
+
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!file.name.endsWith(".pdf")) {
+          statusDiv.textContent = "Please upload a valid PDF file.";
+          return;
+        }
+        uploadPDF(file);
+      });
+    </script>
+  </body>
+</html>
